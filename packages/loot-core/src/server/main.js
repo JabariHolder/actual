@@ -186,6 +186,12 @@ handlers['get-categories'] = async function () {
   };
 };
 
+handlers['get-transactions'] = async function ({ accountId }) {
+  return {
+    list: await db.getTransactions(accountId),
+  };
+};
+
 handlers['get-earliest-transaction'] = async function () {
   let { data } = await aqlQuery(
     q('transactions')

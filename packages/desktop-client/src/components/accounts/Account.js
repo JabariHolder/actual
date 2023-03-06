@@ -1101,6 +1101,10 @@ class AccountInternal extends React.PureComponent {
     if (this.props.lastUndoState && this.props.lastUndoState.current) {
       onUndo(this.props.lastUndoState.current);
     }
+
+    if (this.props.accountId) {
+      this.props.classifyTransactions(this.props.accountId);
+    }
   }
 
   componentDidUpdate(prevProps) {
