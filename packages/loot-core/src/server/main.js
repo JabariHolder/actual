@@ -187,9 +187,8 @@ handlers['get-categories'] = async function () {
 };
 
 handlers['get-transactions'] = async function ({ accountId }) {
-  return {
-    list: await db.getTransactions(accountId),
-  };
+  const transactions = await db.getTransactions(accountId);
+  return transactions;
 };
 
 handlers['get-earliest-transaction'] = async function () {
