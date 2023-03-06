@@ -182,6 +182,14 @@ export function parseTransactions(filepath, options) {
   };
 }
 
+export function classifyTransactions(accountId) {
+  return async function (dispatch) {
+    const transactions = await send('get-transactions', { accountId });
+    console.log(transactions);
+    return transactions;
+  };
+}
+
 export function importTransactions(id, transactions) {
   return async dispatch => {
     let {

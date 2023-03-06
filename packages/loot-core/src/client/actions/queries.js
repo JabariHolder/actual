@@ -92,14 +92,6 @@ export function getCategories() {
   };
 }
 
-export function classifyTransactions(accountId) {
-  return async function (dispatch) {
-    const transactions = await send('get-transactions', { accountId });
-    console.log(transactions);
-    return transactions;
-  };
-}
-
 export function createCategory(name, groupId, isIncome) {
   return async function (dispatch) {
     let id = await send('category-create', {
