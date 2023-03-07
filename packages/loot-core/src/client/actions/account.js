@@ -186,7 +186,7 @@ export function parseTransactions(filepath, options) {
 
 export function classifyTransactions() {
   return async function () {
-    await send('classify-transactions', {});
+    await send('classify-transactions');
   };
 }
 

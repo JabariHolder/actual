@@ -8,6 +8,7 @@ import fs from '../platform/server/fs';
 import logger from '../platform/server/log';
 import * as sqlite from '../platform/server/sqlite';
 import { fromPlaidAccountType } from '../shared/accounts';
+import Classifier from '../shared/classifier';
 import * as monthUtils from '../shared/months';
 import q, { Query } from '../shared/query';
 import { FIELD_TYPES as ruleFieldTypes } from '../shared/rules';
@@ -72,7 +73,6 @@ import toolsApp from './tools/app';
 import { withUndo, clearUndo, undo, redo } from './undo';
 import { updateVersion } from './update';
 import { uniqueFileName, idFromFileName } from './util/budget-name';
-import Classifier from '../shared/classifier';
 
 const YNAB4 = require('@actual-app/import-ynab4/importer');
 const YNAB5 = require('@actual-app/import-ynab5/importer');
@@ -1355,30 +1355,36 @@ handlers['nordigen-accounts-sync'] = async function ({ id }) {
   return { errors, newTransactions, matchedTransactions, updatedAccounts };
 };
 
-handlers['classify-transactions'] = async function() {
+handlers['classify-transactions'] = async function () {
   const trainingData = [];
   const classifier = new Classifier();
   const classifierExists = await classifier.load();
 
   if (classifierExists) {
-      console.log('Classifier cache found');
+    console.log('Classifier cache found');
   } else {
-      console.log('Classifier cache not found');
+    console.log('Classifier cache not found');
 
-      const transactions = await db.getCategoryPayees();
+    const transactions = await db.getCategoryPayees();
 
-      // Sort from earliest to latest
-      const sortedTransactions = transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
+    // Sort from earliest to latest
+    const sortedTransactions = transactions.sort(
+      (a, b) => new Date(b.date) - new Date(a.date),
+    );
 
-      // Limit to 20 per category
-      sortedTransactions.forEach(t => {
-        const existingAmount = transactions.filter(tr => tr.category === t.category).length;
-        if (existingAmount < 500 && t.name && t.category) {trainingData.push(t);}
-      });
+    // Limit to 500 per category
+    sortedTransactions.forEach(t => {
+      const existingAmount = transactions.filter(
+        tr => tr.category === t.category,
+      ).length;
+      if (existingAmount < 500 && t.name && t.category) {
+        trainingData.push(t);
+      }
+    });
 
-      await classifier.build(trainingData);
+    await classifier.build(trainingData);
   }
-}
+};
 
 handlers['transactions-import'] = mutator(function ({
   accountId,
