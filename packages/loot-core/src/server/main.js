@@ -72,6 +72,7 @@ import toolsApp from './tools/app';
 import { withUndo, clearUndo, undo, redo } from './undo';
 import { updateVersion } from './update';
 import { uniqueFileName, idFromFileName } from './util/budget-name';
+import Classifier from '../shared/classifier';
 
 const YNAB4 = require('@actual-app/import-ynab4/importer');
 const YNAB5 = require('@actual-app/import-ynab5/importer');
@@ -184,11 +185,6 @@ handlers['get-categories'] = async function () {
     grouped: await db.getCategoriesGrouped(),
     list: await db.getCategories(),
   };
-};
-
-handlers['get-transactions'] = async function ({ accountId }) {
-  const transactions = await db.getTransactions(accountId);
-  return transactions;
 };
 
 handlers['get-earliest-transaction'] = async function () {
@@ -679,7 +675,7 @@ handlers['rule-get'] = async function ({ id }) {
 };
 
 handlers['rules-run'] = async function ({ transaction }) {
-  return rules.runRules(transaction);
+  return await rules.runRules(transaction);
 };
 
 handlers['rules-migrate'] = async function () {
@@ -1358,6 +1354,31 @@ handlers['nordigen-accounts-sync'] = async function ({ id }) {
 
   return { errors, newTransactions, matchedTransactions, updatedAccounts };
 };
+
+handlers['classify-transactions'] = async function() {
+  const trainingData = [];
+  const classifier = new Classifier();
+  const classifierExists = await classifier.load();
+
+  if (classifierExists) {
+      console.log('Classifier cache found');
+  } else {
+      console.log('Classifier cache not found');
+
+      const transactions = await db.getCategoryPayees();
+
+      // Sort from earliest to latest
+      const sortedTransactions = transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+      // Limit to 20 per category
+      sortedTransactions.forEach(t => {
+        const existingAmount = transactions.filter(tr => tr.category === t.category).length;
+        if (existingAmount < 500 && t.name && t.category) {trainingData.push(t);}
+      });
+
+      await classifier.build(trainingData);
+  }
+}
 
 handlers['transactions-import'] = mutator(function ({
   accountId,

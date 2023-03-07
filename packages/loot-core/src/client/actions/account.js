@@ -1,6 +1,8 @@
 import { send } from '../../platform/client/fetch';
 import * as constants from '../constants';
 
+import Classifier from '../../shared/classifier';
+
 import { addNotification } from './notifications';
 import { getPayees, getAccounts } from './queries';
 
@@ -182,11 +184,9 @@ export function parseTransactions(filepath, options) {
   };
 }
 
-export function classifyTransactions(accountId) {
-  return async function (dispatch) {
-    const transactions = await send('get-transactions', { accountId });
-    console.log(transactions);
-    return transactions;
+export function classifyTransactions() {
+  return async function () {
+    await send('classify-transactions', {});
   };
 }
 
