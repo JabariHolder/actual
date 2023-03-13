@@ -4,7 +4,8 @@ const ls = new LRU({ max: 100 });
 
 class Classifier {
   constructor() {
-    this.classifier = new ml.Classifier();
+    this.options = { nGramMax: 3 };
+    this.classifier = new ml.Classifier(this.options);
   }
 
   /**
@@ -24,7 +25,7 @@ class Classifier {
    * @return {Object} Classification result
    */
   classify(text) {
-    return this.classifier.predict(this.normalise(text));
+    return this.classifier.predict(this.normalise(text), undefined, 0.0);
   }
 
   /**
@@ -48,8 +49,9 @@ class Classifier {
    * @return {Object}      Classifier
    */
   async build(data = {}) {
-    data.forEach(item => {
-      this.classifier.train([item.name], item.category);
+    Object.keys(data).forEach(categoryName => {
+      const corpus = data[categoryName];
+      this.classifier.train(corpus, categoryName);
     });
 
     this.saveFile();
@@ -84,8 +86,8 @@ class Classifier {
    * @param {String} accountId	Id of account
    */
   getFile() {
-    const data = ls.get('accounts');
-    this.classifier = new ml.Classifier(data);
+    const data = ls.get('accounts') || {};
+    this.classifier = new ml.Classifier({ ...this.options, ...data });
   }
 
   /**

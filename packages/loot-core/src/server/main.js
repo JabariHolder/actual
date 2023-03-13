@@ -1372,7 +1372,7 @@ handlers['nordigen-accounts-sync'] = async function ({ id }) {
 };
 
 handlers['classify-transactions'] = async function () {
-  const trainingData = [];
+  const trainingData = {};
   const classifier = new Classifier();
   const classifierExists = await classifier.load();
 
@@ -1390,12 +1390,8 @@ handlers['classify-transactions'] = async function () {
 
     // Limit to 500 per category
     sortedTransactions.forEach(t => {
-      const existingAmount = transactions.filter(
-        tr => tr.category === t.category,
-      ).length;
-      if (existingAmount < 500 && t.name && t.category) {
-        trainingData.push(t);
-      }
+      if (!trainingData[t.category]) trainingData[t.category] = [];
+      trainingData[t.category].push(classifier.normalise(t.name));
     });
 
     await classifier.build(trainingData);
