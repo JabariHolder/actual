@@ -2,12 +2,25 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { connect } from 'react-redux';
 import { Switch, Route, withRouter } from 'react-router-dom';
 
+import { useViewportSize } from '@react-aria/utils';
 import { css, media } from 'glamor';
 
 import * as actions from 'loot-core/src/client/actions';
 import * as Platform from 'loot-core/src/client/platform';
 import * as queries from 'loot-core/src/client/queries';
 import { listen } from 'loot-core/src/platform/client/fetch';
+
+import useFeatureFlag from '../hooks/useFeatureFlag';
+import ArrowLeft from '../icons/v1/ArrowLeft';
+import AlertTriangle from '../icons/v2/AlertTriangle';
+import ArrowButtonRight1 from '../icons/v2/ArrowButtonRight1';
+import NavigationMenu from '../icons/v2/NavigationMenu';
+import { colors } from '../style';
+import tokens, { breakpoints } from '../tokens';
+
+import AccountSyncCheck from './accounts/AccountSyncCheck';
+import AnimatedRefresh from './AnimatedRefresh';
+import { MonthCountSelector } from './budget/MonthCountSelector';
 import {
   View,
   Text,
@@ -16,21 +29,11 @@ import {
   ButtonWithLoading,
   Tooltip,
   P,
-} from 'loot-design/src/components/common';
-import SheetValue from 'loot-design/src/components/spreadsheet/SheetValue';
-import { colors } from 'loot-design/src/style';
-import ArrowLeft from 'loot-design/src/svg/v1/ArrowLeft';
-import AlertTriangle from 'loot-design/src/svg/v2/AlertTriangle';
-import ArrowButtonRight1 from 'loot-design/src/svg/v2/ArrowButtonRight1';
-import NavigationMenu from 'loot-design/src/svg/v2/NavigationMenu';
-import tokens from 'loot-design/src/tokens';
-
-import AccountSyncCheck from './accounts/AccountSyncCheck';
-import AnimatedRefresh from './AnimatedRefresh';
-import { MonthCountSelector } from './budget/MonthCountSelector';
+} from './common';
 import { useSidebar } from './FloatableSidebar';
 import LoggedInUser from './LoggedInUser';
 import { useServerURL } from './ServerContext';
+import SheetValue from './spreadsheet/SheetValue';
 
 export let TitlebarContext = React.createContext();
 
@@ -163,7 +166,7 @@ function BudgetTitlebar({ globalPrefs, saveGlobalPrefs, localPrefs }) {
   let [loading, setLoading] = useState(false);
   let [showTooltip, setShowTooltip] = useState(false);
 
-  let reportBudgetEnabled = localPrefs['flags.reportBudget'];
+  const reportBudgetEnabled = useFeatureFlag('reportBudget');
 
   function onSwitchType() {
     setLoading(true);
@@ -264,6 +267,9 @@ function Titlebar({
   let sidebar = useSidebar();
   const serverURL = useServerURL();
 
+  let windowWidth = useViewportSize().width;
+  let sidebarAlwaysFloats = windowWidth < breakpoints.medium;
+
   return (
     <View
       style={[
@@ -283,20 +289,24 @@ function Titlebar({
         style,
       ]}
     >
-      {floatingSidebar && (
+      {(floatingSidebar || sidebarAlwaysFloats) && (
         <Button
           bare
           style={{
             marginRight: 8,
             '& .arrow-right': { opacity: 0, transition: 'opacity .3s' },
             '& .menu': { opacity: 1, transition: 'opacity .3s' },
-            '&:hover .arrow-right': { opacity: 1 },
-            '&:hover .menu': { opacity: 0 },
+            '&:hover .arrow-right': !sidebarAlwaysFloats && { opacity: 1 },
+            '&:hover .menu': !sidebarAlwaysFloats && { opacity: 0 },
           }}
           onMouseEnter={() => sidebar.show()}
           onMouseLeave={() => sidebar.hide()}
           onClick={() => {
-            saveGlobalPrefs({ floatingSidebar: !floatingSidebar });
+            if (windowWidth >= breakpoints.medium) {
+              saveGlobalPrefs({ floatingSidebar: !floatingSidebar });
+            } else {
+              sidebar.toggle();
+            }
           }}
         >
           <View style={{ width: 15, height: 15 }}>

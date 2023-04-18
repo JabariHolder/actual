@@ -1,6 +1,5 @@
+import * as uuid from '../platform/uuid';
 import * as monthUtils from '../shared/months';
-
-const uuid = require('../platform/uuid');
 
 export function generateAccount(name, isConnected, type, offbudget) {
   return {
@@ -55,9 +54,8 @@ function _generateTransaction(data) {
   return {
     id: id,
     amount: data.amount || Math.floor(Math.random() * 10000 - 7000),
-    payee: data.payee || (Math.random() < 0.9 ? 'payed-to' : 'guy'),
-    notes:
-      Math.random() < 0.1 ? 'A really long note that should overflow' : 'Notes',
+    payee: data.payee || 'payed-to',
+    notes: 'Notes',
     account: data.account,
     date: data.date || monthUtils.currentDay(),
     category: data.category,

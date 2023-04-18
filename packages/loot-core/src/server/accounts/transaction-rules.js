@@ -91,6 +91,11 @@ export const ruleModel = {
         throw new Error('Invalid rule stage: ' + rule.stage);
       }
     }
+    if (!update || 'conditionsOp' in rule) {
+      if (!['and', 'or'].includes(rule.conditionsOp)) {
+        throw new Error('Invalid rule conditionsOp: ' + rule.conditionsOp);
+      }
+    }
 
     return rule;
   },
@@ -110,25 +115,31 @@ export const ruleModel = {
       return value;
     }
 
-    let rule = { ...row };
-    rule.conditions = rule.conditions
-      ? parseArray(rule.conditions).map(cond => fromInternalField(cond))
-      : [];
-    rule.actions = rule.actions
-      ? parseArray(rule.actions).map(action => fromInternalField(action))
-      : [];
-    return rule;
+    let { conditions, conditions_op, actions, ...fields } = row;
+    return {
+      ...fields,
+      conditionsOp: conditions_op,
+      conditions: conditions
+        ? parseArray(conditions).map(cond => fromInternalField(cond))
+        : [],
+      actions: actions
+        ? parseArray(actions).map(action => fromInternalField(action))
+        : [],
+    };
   },
 
   fromJS(rule) {
-    let row = { ...rule };
-    if ('conditions' in row) {
-      let conditions = row.conditions.map(cond => toInternalField(cond));
-      row.conditions = JSON.stringify(conditions);
+    let { conditions, conditionsOp, actions, ...row } = rule;
+    if (conditionsOp) {
+      row.conditions_op = conditionsOp;
     }
-    if ('actions' in row) {
-      let actions = row.actions.map(action => toInternalField(action));
-      row.actions = JSON.stringify(actions);
+    if (Array.isArray(conditions)) {
+      let value = conditions.map(cond => toInternalField(cond));
+      row.conditions = JSON.stringify(value);
+    }
+    if (Array.isArray(actions)) {
+      let value = actions.map(action => toInternalField(action));
+      row.actions = JSON.stringify(value);
     }
     return row;
   },
@@ -612,6 +623,7 @@ export async function updatePayeeRenameRule(fromNames, to) {
   } else {
     let rule = new Rule({
       stage: 'pre',
+      conditionsOp: 'and',
       conditions: [{ op: 'oneOf', field: 'imported_payee', value: fromNames }],
       actions: [{ op: 'set', field: 'payee', value: to }],
       fieldTypes: FIELD_TYPES,
@@ -720,6 +732,7 @@ export async function updateCategoryRules(transactions) {
         // No existing rules, so create one
         let newRule = new Rule({
           stage: null,
+          conditionsOp: 'and',
           conditions: [{ op: 'is', field: 'payee', value: payeeId }],
           actions: [{ op: 'set', field: 'category', value: category }],
           fieldTypes: FIELD_TYPES,
@@ -775,6 +788,7 @@ export async function migrateOldRules() {
     if (equals.length > 0) {
       rules.push({
         stage: null,
+        conditionsOp: 'and',
         conditions: [
           {
             op: 'oneOf',
@@ -790,6 +804,7 @@ export async function migrateOldRules() {
       rules = rules.concat(
         contains.map(payeeRule => ({
           stage: null,
+          conditionsOp: 'and',
           conditions: [
             {
               op: 'contains',
@@ -816,6 +831,7 @@ export async function migrateOldRules() {
   for (let [catId, payeeIds] of catRules) {
     rules.push({
       stage: null,
+      conditionsOp: 'and',
       conditions: [
         {
           op: 'oneOf',
@@ -842,6 +858,7 @@ export async function migrateOldRules() {
     for (let rule of rules) {
       await insertRule({
         stage: rule.stage,
+        conditionsOp: rule.conditionsOp,
         conditions: rule.conditions,
         actions: rule.actions,
       });

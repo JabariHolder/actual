@@ -1,19 +1,19 @@
+import jsc from 'jsverify';
+
 import { merkle, getClock, Timestamp } from '../crdt';
 import * as db from '../db';
 import * as prefs from '../prefs';
 import * as sheet from '../sheet';
+import * as mockSyncServer from '../tests/mockSyncServer';
 
 import * as encoder from './encoder';
 
 import * as sync from './index';
 
-const jsc = require('jsverify');
-const uuidGenerator = jsc.integer(97, 122).smap(
+const uuidGenerator = jsc.integer({ min: 97, max: 122 }).smap(
   x => String.fromCharCode(x),
   x => x.charCodeAt(x),
 );
-
-const mockSyncServer = require('../tests/mockSyncServer');
 
 beforeEach(() => {
   sync.setSyncingMode('enabled');
@@ -104,7 +104,7 @@ function makeGen({ table, row, field, value }) {
     row: row || uuidGenerator,
     column: jsc.constant(field),
     value,
-    timestamp: jsc.integer(1000, 10000).smap(
+    timestamp: jsc.integer({ min: 1000, max: 10000 }).smap(
       x => {
         let clientId;
         switch (jsc.random(0, 1)) {

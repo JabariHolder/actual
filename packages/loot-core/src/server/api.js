@@ -1,3 +1,4 @@
+import * as connection from '../platform/server/connection';
 import {
   getDownloadError,
   getSyncError,
@@ -28,8 +29,6 @@ import { runMutator } from './mutators';
 import * as prefs from './prefs';
 import * as sheet from './sheet';
 import { setSyncingMode, batchMessages } from './sync';
-
-const connection = require('../platform/server/connection');
 
 let IMPORT_MODE = false;
 
@@ -95,11 +94,11 @@ async function validateExpenseCategory(debug, id) {
   ]);
 
   if (!row) {
-    throw APIError(`${debug}: category "${id}" does not exist`);
+    throw APIError(`${debug}: category “${id}” does not exist`);
   }
 
   if (row.is_income !== 0) {
-    throw APIError(`${debug}: category "${id}" is not an expense category`);
+    throw APIError(`${debug}: category “${id}” is not an expense category`);
   }
 }
 
@@ -174,7 +173,7 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
     let file = files.find(f => f.groupId === syncId);
     if (!file) {
       throw new Error(
-        `Budget "${syncId}" not found. Check the sync id of your budget in the "Advanced" section of the settings page.`,
+        `Budget “${syncId}” not found. Check the sync id of your budget in the Advanced section of the settings page.`,
       );
     }
     if (file.encryptKeyId && !password) {

@@ -1,6 +1,6 @@
 import csv2json from 'csv-parse/lib/sync';
 
-import fs from '../../platform/server/fs';
+import * as fs from '../../platform/server/fs';
 import { dayFromDate } from '../../shared/months';
 import { looselyParseAmount } from '../../shared/util';
 
@@ -42,6 +42,7 @@ async function parseCSV(filepath, options = {}) {
       columns: true,
       bom: true,
       delimiter: options.delimiter || ',',
+      // eslint-disable-next-line rulesdir/typography
       quote: '"',
       trim: true,
       relax_column_count: true,
@@ -66,7 +67,7 @@ async function parseQIF(filepath) {
     data = qif2json(contents);
   } catch (err) {
     errors.push({
-      message: "Failed parsing: doesn't look like a valid QIF file.",
+      message: 'Failed parsing: doesn’t look like a valid QIF file.',
       internal: err.stack,
     });
     return { errors, transactions: [] };

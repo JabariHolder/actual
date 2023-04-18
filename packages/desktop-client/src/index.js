@@ -8,9 +8,9 @@ import '@reach/listbox/styles.css';
 import 'inter-ui/inter.css';
 
 import React from 'react';
-import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
 
+import { createRoot } from 'react-dom/client';
 import {
   createStore,
   combineReducers,
@@ -32,7 +32,7 @@ import { handleGlobalEvents } from './global-events';
 
 // See https://github.com/WICG/focus-visible. Only makes the blue
 // focus outline appear from keyboard events.
-require('focus-visible');
+import 'focus-visible';
 
 const appReducer = combineReducers(reducers);
 function rootReducer(state, action) {
@@ -70,11 +70,12 @@ window.$send = send;
 window.$query = runQuery;
 window.$q = q;
 
-ReactDOM.render(
+const container = document.getElementById('root');
+const root = createRoot(container);
+root.render(
   <Provider store={store}>
     <ServerProvider>
       <App />
     </ServerProvider>
   </Provider>,
-  document.getElementById('root'),
 );

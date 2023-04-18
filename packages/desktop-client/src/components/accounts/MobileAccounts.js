@@ -5,16 +5,13 @@ import { useNavigate } from 'react-router-dom-v5-compat';
 import * as actions from 'loot-core/src/client/actions';
 import * as queries from 'loot-core/src/client/queries';
 import { prettyAccountType } from 'loot-core/src/shared/accounts';
-import {
-  Button,
-  Text,
-  TextOneLine,
-  View,
-} from 'loot-design/src/components/common';
-import CellValue from 'loot-design/src/components/spreadsheet/CellValue';
-import { colors, styles } from 'loot-design/src/style';
-import Wallet from 'loot-design/src/svg/v1/Wallet';
-import { withThemeColor } from 'loot-design/src/util/withThemeColor';
+
+import Wallet from '../../icons/v1/Wallet';
+import { colors, styles } from '../../style';
+import { withThemeColor } from '../../util/withThemeColor';
+import { Button, Text, TextOneLine, View } from '../common';
+import { Page } from '../Page';
+import CellValue from '../spreadsheet/CellValue';
 
 export function AccountHeader({ name, amount }) {
   return (
@@ -199,53 +196,30 @@ export class AccountList extends React.Component {
     }
 
     const accountContent = (
-      <View style={{ overflowY: 'auto' }}>
-        <View
-          style={{
-            alignItems: 'center',
-            backgroundColor: colors.b2,
-            color: 'white',
-            flexDirection: 'row',
-            flex: '1 0 auto',
-            fontSize: 18,
-            fontWeight: 500,
-            height: 50,
-            justifyContent: 'center',
-            overflowY: 'auto',
-          }}
-        >
-          Accounts
-        </View>
-        <View
-          style={{
-            backgroundColor: colors.n10,
-            overflowY: 'auto',
-            padding: 10,
-          }}
-        >
-          <AccountHeader name="Budgeted" amount={getOnBudgetBalance()} />
-          {budgetedAccounts.map((acct, idx) => (
-            <AccountCard
-              account={acct}
-              key={acct.id}
-              updated={updatedAccounts.includes(acct.id)}
-              getBalanceQuery={getBalanceQuery}
-              onSelect={onSelectAccount}
-            />
-          ))}
+      <Page title="Accounts">
+        <AccountHeader name="Budgeted" amount={getOnBudgetBalance()} />
+        {budgetedAccounts.map((acct, idx) => (
+          <AccountCard
+            account={acct}
+            key={acct.id}
+            updated={updatedAccounts.includes(acct.id)}
+            getBalanceQuery={getBalanceQuery}
+            onSelect={onSelectAccount}
+          />
+        ))}
 
-          <AccountHeader name="Off budget" amount={getOffBudgetBalance()} />
-          {offbudgetAccounts.map((acct, idx) => (
-            <AccountCard
-              account={acct}
-              key={acct.id}
-              updated={updatedAccounts.includes(acct.id)}
-              getBalanceQuery={getBalanceQuery}
-              onSelect={onSelectAccount}
-            />
-          ))}
+        <AccountHeader name="Off budget" amount={getOffBudgetBalance()} />
+        {offbudgetAccounts.map((acct, idx) => (
+          <AccountCard
+            account={acct}
+            key={acct.id}
+            updated={updatedAccounts.includes(acct.id)}
+            getBalanceQuery={getBalanceQuery}
+            onSelect={onSelectAccount}
+          />
+        ))}
 
-          {/*<Label
+        {/*<Label
           title="RECENT TRANSACTIONS"
           style={{
             textAlign: 'center',
@@ -254,8 +228,7 @@ export class AccountList extends React.Component {
             marginLeft: 10
           }}
           />*/}
-        </View>
-      </View>
+      </Page>
     );
 
     return (
@@ -306,13 +279,14 @@ function Accounts(props) {
 
   let { accounts, categories, newTransactions, updatedAccounts, prefs } = props;
   let numberFormat = prefs.numberFormat || 'comma-dot';
+  let hideFraction = prefs.hideFraction || false;
 
   return (
     <View style={{ flex: 1 }}>
       <AccountList
         // This key forces the whole table rerender when the number
         // format changes
-        key={numberFormat}
+        key={numberFormat + hideFraction}
         accounts={accounts.filter(account => !account.closed)}
         categories={categories}
         transactions={transactions || []}

@@ -2,17 +2,10 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 
 import { pushModal } from 'loot-core/src/client/actions/modals';
-import {
-  View,
-  Text,
-  Modal,
-  P,
-  Button,
-  ButtonWithLoading,
-} from 'loot-design/src/components/common';
-import { colors } from 'loot-design/src/style';
 
 import { authorizeBank } from '../../nordigen';
+import { colors } from '../../style';
+import { View, Text, Modal, P, Button, ButtonWithLoading } from '../common';
 
 export default function CreateAccount({ modalProps, syncServerStatus }) {
   const dispatch = useDispatch();
@@ -31,8 +24,8 @@ export default function CreateAccount({ modalProps, syncServerStatus }) {
         <View style={{ maxWidth: 500 }}>
           <Text style={{ marginBottom: 10, lineHeight: '1.4em', fontSize: 15 }}>
             <strong>Link your bank accounts</strong> to automatically download
-            transactions. We offer hundreds of banks to sync with, and our
-            service will provide reliable, up-to-date information.
+            transactions. We offer hundreds of banks to sync with, and Nordigen
+            will provide reliable, up-to-date information.
           </Text>
 
           <ButtonWithLoading

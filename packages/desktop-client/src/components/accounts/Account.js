@@ -26,6 +26,28 @@ import {
   applyChanges,
   groupById,
 } from 'loot-core/src/shared/util';
+
+import useFeatureFlag from '../../hooks/useFeatureFlag';
+import {
+  SelectedProviderWithItems,
+  useSelectedItems,
+} from '../../hooks/useSelected';
+import useSyncServerStatus from '../../hooks/useSyncServerStatus';
+import Loading from '../../icons/AnimatedLoading';
+import Add from '../../icons/v1/Add';
+import DotsHorizontalTriple from '../../icons/v1/DotsHorizontalTriple';
+import ArrowButtonRight1 from '../../icons/v2/ArrowButtonRight1';
+import ArrowsExpand3 from '../../icons/v2/ArrowsExpand3';
+import ArrowsShrink3 from '../../icons/v2/ArrowsShrink3';
+import CheckCircle1 from '../../icons/v2/CheckCircle1';
+import DownloadThickBottom from '../../icons/v2/DownloadThickBottom';
+import Pencil1 from '../../icons/v2/Pencil1';
+import SvgRemove from '../../icons/v2/Remove';
+import SearchAlternate from '../../icons/v2/SearchAlternate';
+import { authorizeBank } from '../../nordigen';
+import { styles, colors } from '../../style';
+import { useActiveLocation } from '../ActiveLocation';
+import AnimatedRefresh from '../AnimatedRefresh';
 import {
   View,
   Text,
@@ -36,34 +58,13 @@ import {
   Tooltip,
   Menu,
   Stack,
-} from 'loot-design/src/components/common';
-import { KeyHandlers } from 'loot-design/src/components/KeyHandlers';
-import NotesButton from 'loot-design/src/components/NotesButton';
-import CellValue from 'loot-design/src/components/spreadsheet/CellValue';
-import format from 'loot-design/src/components/spreadsheet/format';
-import useSheetValue from 'loot-design/src/components/spreadsheet/useSheetValue';
-import { SelectedItemsButton } from 'loot-design/src/components/table';
-import {
-  SelectedProviderWithItems,
-  useSelectedItems,
-} from 'loot-design/src/components/useSelected';
-import { styles, colors } from 'loot-design/src/style';
-import Loading from 'loot-design/src/svg/AnimatedLoading';
-import Add from 'loot-design/src/svg/v1/Add';
-import DotsHorizontalTriple from 'loot-design/src/svg/v1/DotsHorizontalTriple';
-import ArrowButtonRight1 from 'loot-design/src/svg/v2/ArrowButtonRight1';
-import ArrowsExpand3 from 'loot-design/src/svg/v2/ArrowsExpand3';
-import ArrowsShrink3 from 'loot-design/src/svg/v2/ArrowsShrink3';
-import CheckCircle1 from 'loot-design/src/svg/v2/CheckCircle1';
-import DownloadThickBottom from 'loot-design/src/svg/v2/DownloadThickBottom';
-import Pencil1 from 'loot-design/src/svg/v2/Pencil1';
-import SvgRemove from 'loot-design/src/svg/v2/Remove';
-import SearchAlternate from 'loot-design/src/svg/v2/SearchAlternate';
-
-import useSyncServerStatus from '../../hooks/useSyncServerStatus';
-import { authorizeBank } from '../../nordigen';
-import { useActiveLocation } from '../ActiveLocation';
-import AnimatedRefresh from '../AnimatedRefresh';
+} from '../common';
+import { KeyHandlers } from '../KeyHandlers';
+import NotesButton from '../NotesButton';
+import CellValue from '../spreadsheet/CellValue';
+import format from '../spreadsheet/format';
+import useSheetValue from '../spreadsheet/useSheetValue';
+import { SelectedItemsButton } from '../table';
 
 import { FilterButton, AppliedFilters } from './Filters';
 import TransactionList from './TransactionList';
@@ -166,7 +167,7 @@ function ReconcilingMessage({
                 {(targetDiff > 0 ? '+' : '') + format(targetDiff, 'financial')}
               </strong>{' '}
               to match
-              <br /> your bank{"'"}s balance of{' '}
+              <br /> your bank’s balance of{' '}
               <Text style={{ fontWeight: 700 }}>
                 {format(targetBalance, 'financial')}
               </Text>
@@ -285,7 +286,7 @@ function AccountMenu({
           },
           {
             name: 'toggle-cleared',
-            text: (showCleared ? 'Hide' : 'Show') + ' "Cleared" Checkboxes',
+            text: (showCleared ? 'Hide' : 'Show') + ' “Cleared” Checkboxes',
           },
           { name: 'export', text: 'Export' },
           { name: 'reconcile', text: 'Reconcile' },
@@ -400,6 +401,7 @@ function Balances({ balanceQuery, showExtraBalances, onToggleExtraBalances }) {
       }}
     >
       <Button
+        data-testid="account-balance"
         bare
         onClick={onToggleExtraBalances}
         style={{
@@ -479,6 +481,7 @@ function SelectedTransactionsButton({
   onDelete,
   onEdit,
   onUnlink,
+  onCreateRule,
   onScheduleAction,
 }) {
   let selectedItems = useSelectedItems();
@@ -551,6 +554,10 @@ function SelectedTransactionsButton({
                       name: 'link-schedule',
                       text: 'Link schedule',
                     },
+                    {
+                      name: 'create-rule',
+                      text: 'Create rule',
+                    },
                   ]),
               Menu.line,
               { type: Menu.label, name: 'Edit field' },
@@ -604,6 +611,9 @@ function SelectedTransactionsButton({
           case 'unlink-schedule':
             onUnlink([...selectedItems]);
             break;
+          case 'create-rule':
+            onCreateRule([...selectedItems]);
+            break;
           default:
             onEdit(name, [...selectedItems]);
         }
@@ -650,6 +660,7 @@ const AccountHeader = React.memo(
     onBatchDuplicate,
     onBatchEdit,
     onBatchUnlink,
+    onCreateRule,
     onApplyFilter,
     onUpdateFilter,
     onDeleteFilter,
@@ -757,6 +768,7 @@ const AccountHeader = React.memo(
               ) : (
                 <View
                   style={{ fontSize: 25, fontWeight: 500, marginBottom: 5 }}
+                  data-testid="account-name"
                 >
                   {account && account.closed
                     ? 'Closed: ' + accountName
@@ -883,6 +895,7 @@ const AccountHeader = React.memo(
                 onDelete={onBatchDelete}
                 onEdit={onBatchEdit}
                 onUnlink={onBatchUnlink}
+                onCreateRule={onCreateRule}
                 onScheduleAction={onScheduleAction}
               />
             )}
@@ -1665,6 +1678,45 @@ class AccountInternal extends React.PureComponent {
     await this.refetchTransactions();
   };
 
+  onCreateRule = async ids => {
+    let { data } = await runQuery(
+      q('transactions')
+        .filter({ id: { $oneof: ids } })
+        .select('*')
+        .options({ splits: 'grouped' }),
+    );
+    let transactions = ungroupTransactions(data);
+    let payeeCondition = transactions[0].imported_payee
+      ? {
+          field: 'imported_payee',
+          op: 'is',
+          value: transactions[0].imported_payee,
+          type: 'string',
+        }
+      : {
+          field: 'payee',
+          op: 'is',
+          value: transactions[0].payee,
+          type: 'id',
+        };
+
+    let rule = {
+      stage: null,
+      conditionsOp: 'and',
+      conditions: [payeeCondition],
+      actions: [
+        {
+          op: 'set',
+          field: 'category',
+          value: transactions[0].category,
+          type: 'id',
+        },
+      ],
+    };
+
+    this.props.pushModal('edit-rule', { rule });
+  };
+
   onUpdateFilter = (oldFilter, updatedFilter) => {
     this.applyFilters(
       this.state.filters.map(f => (f === oldFilter ? updatedFilter : f)),
@@ -1730,6 +1782,7 @@ class AccountInternal extends React.PureComponent {
       payees,
       syncEnabled,
       dateFormat,
+      hideFraction,
       addNotification,
       accountsSyncing,
       replaceModal,
@@ -1820,6 +1873,7 @@ class AccountInternal extends React.PureComponent {
                   onBatchDuplicate={this.onBatchDuplicate}
                   onBatchEdit={this.onBatchEdit}
                   onBatchUnlink={this.onBatchUnlink}
+                  onCreateRule={this.onCreateRule}
                   onUpdateFilter={this.onUpdateFilter}
                   onDeleteFilter={this.onDeleteFilter}
                   onApplyFilter={this.onApplyFilter}
@@ -1858,6 +1912,7 @@ class AccountInternal extends React.PureComponent {
                       this.state.search !== '' || this.state.filters.length > 0
                     }
                     dateFormat={dateFormat}
+                    hideFraction={hideFraction}
                     addNotification={addNotification}
                     renderEmpty={() =>
                       showEmptyMessage ? (
@@ -1914,14 +1969,15 @@ function AccountHack(props) {
 }
 
 export default function Account(props) {
+  const syncEnabled = useFeatureFlag('syncAccount');
   let state = useSelector(state => ({
     newTransactions: state.queries.newTransactions,
     matchedTransactions: state.queries.matchedTransactions,
     accounts: state.queries.accounts,
     failedAccounts: state.account.failedAccounts,
     categoryGroups: state.queries.categories.grouped,
-    syncEnabled: state.prefs.local['flags.syncAccount'],
     dateFormat: state.prefs.local.dateFormat || 'MM/dd/yyyy',
+    hideFraction: state.prefs.local.hideFraction || false,
     expandSplits: props.match && state.prefs.local['expand-splits'],
     showBalances:
       props.match &&
@@ -1974,6 +2030,7 @@ export default function Account(props) {
         <AccountHack
           {...state}
           {...actionCreators}
+          syncEnabled={syncEnabled}
           modalShowing={
             state.modalShowing ||
             !!(activeLocation.state && activeLocation.state.locationPtr)
