@@ -1,5 +1,4 @@
 module.exports = {
-  preset: 'ts-jest/presets/js-with-ts-esm',
   moduleFileExtensions: [
     'testing.js',
     'testing.ts',
@@ -17,6 +16,7 @@ module.exports = {
   testMatch: ['**/*.web.test.(js|ts|tsx)'],
   transformIgnorePatterns: ['/node_modules/(?!absurd-sql)'],
   transform: {
-    '\\.pegjs$': 'pegjs-jest-transformer',
+    '\\.pegjs$': '<rootDir>/peg-transform.mjs',
+    '^.+\\.(t|j)sx?$': '@swc/jest',
   },
 };

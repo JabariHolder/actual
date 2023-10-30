@@ -1,9 +1,18 @@
+import {
+  makeClock,
+  setClock,
+  serializeClock,
+  deserializeClock,
+  makeClientId,
+  Timestamp,
+} from '@actual-app/crdt';
 import LRU from 'lru-cache';
+import { v4 as uuidv4 } from 'uuid';
 
 import * as fs from '../../platform/server/fs';
 import * as sqlite from '../../platform/server/sqlite';
-import * as uuid from '../../platform/uuid';
 import { groupById } from '../../shared/util';
+import { CategoryEntity, CategoryGroupEntity } from '../../types/models';
 import {
   schema,
   schemaConfig,
@@ -12,19 +21,10 @@ import {
   convertFromSelect,
 } from '../aql';
 import {
-  makeClock,
-  setClock,
-  serializeClock,
-  deserializeClock,
-  makeClientId,
-  Timestamp,
-} from '../crdt';
-import {
   accountModel,
   categoryModel,
   categoryGroupModel,
   payeeModel,
-  payeeRuleModel,
 } from '../models';
 import { sendMessages, batchMessages } from '../sync';
 
@@ -41,7 +41,7 @@ export function getDatabasePath() {
   return dbPath;
 }
 
-export async function openDatabase(id) {
+export async function openDatabase(id?) {
   if (db) {
     await sqlite.closeDatabase(db);
   }
@@ -132,29 +132,29 @@ function resetQueryCache() {
   _queryCache = new LRU({ max: 100 });
 }
 
-export function transaction(fn) {
+export function transaction(fn: () => void) {
   return sqlite.transaction(db, fn);
 }
 
-export function asyncTransaction(fn) {
+export function asyncTransaction(fn: () => Promise<void>) {
   return sqlite.asyncTransaction(db, fn);
 }
 
 // This function is marked as async because `runQuery` is no longer
 // async. We return a promise here until we've audited all the code to
 // make sure nothing calls `.then` on this.
-export async function all(sql, params?: string[]) {
+export async function all(sql, params?: (string | number)[]) {
   return runQuery(sql, params, true);
 }
 
-export async function first(sql, params?: string[]) {
+export async function first(sql, params?: (string | number)[]) {
   const arr = await runQuery(sql, params, true);
   return arr.length === 0 ? null : arr[0];
 }
 
 // The underlying sql system is now sync, but we can't update `first` yet
 // without auditing all uses of it
-export function firstSync(sql, params?: string[]) {
+export function firstSync(sql, params?: (string | number)[]) {
   const arr = runQuery(sql, params, true);
   return arr.length === 0 ? null : arr[0];
 }
@@ -162,7 +162,7 @@ export function firstSync(sql, params?: string[]) {
 // This function is marked as async because `runQuery` is no longer
 // async. We return a promise here until we've audited all the code to
 // make sure nothing calls `.then` on this.
-export async function run(sql, params?: string[]) {
+export async function run(sql, params?: (string | number)[]) {
   return runQuery(sql, params);
 }
 
@@ -197,7 +197,7 @@ export async function update(table, params) {
 
 export async function insertWithUUID(table, row) {
   if (!row.id) {
-    row = { ...row, id: uuid.v4Sync() };
+    row = { ...row, id: uuidv4() };
   }
 
   await insert(table, row);
@@ -256,7 +256,7 @@ export function insertWithSchema(table, row) {
   // Even though `insertWithUUID` does this, we need to do it here so
   // the schema validation passes
   if (!row.id) {
-    row = { ...row, id: uuid.v4Sync() };
+    row = { ...row, id: uuidv4() };
   }
 
   return insertWithUUID(
@@ -272,28 +272,28 @@ export function updateWithSchema(table, fields) {
 // Data-specific functions. Ideally this would be split up into
 // different files
 
-export async function getCategories() {
-  return all(`
-    SELECT c.* FROM categories c
-      LEFT JOIN category_groups cg ON c.cat_group = cg.id
-      WHERE c.tombstone = 0
-      ORDER BY cg.sort_order, cg.id, c.sort_order, c.id
+export async function getCategories(): Promise<CategoryEntity[]> {
+  return await all(`
+    SELECT c.* FROM categories c WHERE c.tombstone = 0
+      ORDER BY c.sort_order, c.id
   `);
 }
 
-export async function getCategoriesGrouped() {
-  const groups = await all(
-    'SELECT * FROM category_groups WHERE tombstone = 0 ORDER BY is_income, sort_order, id',
-  );
-  const rows = await all(`
-    SELECT * FROM categories WHERE tombstone = 0
-      ORDER BY sort_order, id
+export async function getCategoriesGrouped(): Promise<
+  Array<CategoryGroupEntity>
+> {
+  const groups = await all(`
+    SELECT cg.* FROM category_groups cg WHERE cg.tombstone = 0 ORDER BY cg.is_income, cg.sort_order, cg.id
+  `);
+  const categories = await all(`
+    SELECT c.* FROM categories c WHERE c.tombstone = 0
+      ORDER BY c.sort_order, c.id
   `);
 
   return groups.map(group => {
     return {
       ...group,
-      categories: rows.filter(row => row.cat_group === group.id),
+      categories: categories.filter(c => c.cat_group === group.id),
     };
   });
 }
@@ -328,7 +328,7 @@ export async function moveCategoryGroup(id, targetId) {
   await update('category_groups', { id, sort_order });
 }
 
-export async function deleteCategoryGroup(group, transferId) {
+export async function deleteCategoryGroup(group, transferId?: string) {
   const categories = await all('SELECT * FROM categories WHERE cat_group = ?', [
     group.id,
   ]);
@@ -387,7 +387,7 @@ export function updateCategory(category) {
   return update('categories', category);
 }
 
-export async function moveCategory(id, groupId, targetId) {
+export async function moveCategory(id, groupId, targetId?: string) {
   if (!groupId) {
     throw new Error('moveCategory: groupId is required');
   }
@@ -404,7 +404,7 @@ export async function moveCategory(id, groupId, targetId) {
   await update('categories', { id, sort_order, cat_group: groupId });
 }
 
-export async function deleteCategory(category, transferId) {
+export async function deleteCategory(category, transferId?: string) {
   if (transferId) {
     // We need to update all the deleted categories that currently
     // point to the one we're about to delete so they all are
@@ -454,10 +454,6 @@ export async function deletePayee(payee) {
   //   mappings.map(m => update('payee_mapping', { id: m.id, targetId: null }))
   // );
 
-  let rules = await all('SELECT * FROM payee_rules WHERE payee_id = ?', [
-    payee.id,
-  ]);
-  await Promise.all(rules.map(rule => deletePayeeRule({ id: rule.id })));
   return delete_('payees', payee.id);
 }
 
@@ -496,7 +492,7 @@ export async function mergePayees(target, ids) {
       }),
     );
 
-    return Promise.all(
+    await Promise.all(
       ids.map(id =>
         Promise.all([
           update('payee_mapping', { id, targetId: target }),
@@ -516,6 +512,15 @@ export function getPayees() {
   `);
 }
 
+export function syncGetOrphanedPayees() {
+  return all(`
+  SELECT p.id FROM payees p
+  LEFT JOIN payee_mapping pm ON pm.id = p.id
+  LEFT JOIN v_transactions_internal_alive t ON t.payee = pm.targetId
+  WHERE p.tombstone = 0 AND p.transfer_acct IS NULL AND t.id IS NULL
+`);
+}
+
 export async function getOrphanedPayees() {
   let rows = await all(`
     SELECT p.id FROM payees p
@@ -533,29 +538,6 @@ export async function getPayeeByName(name) {
   );
 }
 
-export function insertPayeeRule(rule) {
-  rule = payeeRuleModel.validate(rule);
-  return insertWithUUID('payee_rules', rule);
-}
-
-export function deletePayeeRule(rule) {
-  return delete_('payee_rules', rule.id);
-}
-
-export function updatePayeeRule(rule) {
-  rule = payeeModel.validate(rule, { update: true });
-  return update('payee_rules', rule);
-}
-
-export function getPayeeRules(id) {
-  return all(
-    `SELECT pr.* FROM payee_rules pr
-     LEFT JOIN payee_mapping pm ON pm.id = pr.payee_id
-     WHERE pm.targetId = ? AND pr.tombstone = 0`,
-    [id],
-  );
-}
-
 export function getAccounts() {
   return all(
     `SELECT a.*, b.name as bankName, b.id as bankId FROM accounts a
@@ -566,12 +548,6 @@ export function getAccounts() {
 }
 
 export async function insertAccount(account) {
-  // Default to checking. Makes it a lot easier for tests and is
-  // generally harmless.
-  if (account.type === undefined) {
-    account = { ...account, type: 'checking' };
-  }
-
   const accounts = await all(
     'SELECT * FROM accounts WHERE offbudget = ? ORDER BY sort_order, name',
     [account.offbudget != null ? account.offbudget : 0],
@@ -608,7 +584,7 @@ export async function moveAccount(id, targetId) {
   }
 
   const { updates, sort_order } = shoveSortOrders(accounts, targetId);
-  await batchMessages(() => {
+  await batchMessages(async () => {
     for (let info of updates) {
       update('accounts', info);
     }
@@ -634,8 +610,8 @@ export async function getTransactionsByDate(
   throw new Error('`getTransactionsByDate` is deprecated');
 }
 
-export async function getTransactions(accountId, arg2) {
-  if (arg2 !== undefined) {
+export async function getTransactions(accountId) {
+  if (arguments.length > 1) {
     throw new Error(
       '`getTransactions` was given a second argument, it now only takes a single argument `accountId`',
     );

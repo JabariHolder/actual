@@ -1,11 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { forwardRef, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-import { View } from '../common';
+import { useActions } from '../../hooks/useActions';
+import View from '../common/View';
 
 import { useBudgetMonthCount } from './BudgetMonthCountContext';
-import { BudgetPageHeader, BudgetTable } from './misc';
-import { CategoryGroupsContext } from './util';
+import BudgetPageHeader from './BudgetPageHeader';
+import BudgetTable from './BudgetTable';
 
 function getNumPossibleMonths(width) {
   let estimatedTableWidth = width - 200;
@@ -25,7 +27,7 @@ function getNumPossibleMonths(width) {
   return 6;
 }
 
-const DynamicBudgetTableInner = React.forwardRef(
+const DynamicBudgetTableInner = forwardRef(
   (
     {
       width,
@@ -41,7 +43,9 @@ const DynamicBudgetTableInner = React.forwardRef(
     },
     ref,
   ) => {
+    let prefs = useSelector(state => state.prefs.local);
     let { setDisplayMax } = useBudgetMonthCount();
+    let actions = useActions();
 
     let numPossible = getNumPossibleMonths(width);
     let numMonths = Math.min(numPossible, maxMonths);
@@ -56,39 +60,39 @@ const DynamicBudgetTableInner = React.forwardRef(
     }
 
     return (
-      <CategoryGroupsContext.Provider value={categoryGroups}>
-        <View
-          style={{
-            width,
-            height,
-            alignItems: 'center',
-            opacity: width <= 0 || height <= 0 ? 0 : 1,
-          }}
-        >
-          <View style={{ width: '100%', maxWidth }}>
-            <BudgetPageHeader
-              startMonth={prewarmStartMonth}
-              numMonths={numMonths}
-              monthBounds={monthBounds}
-              onMonthSelect={onMonthSelect}
-            />
-            <BudgetTable
-              ref={ref}
-              categoryGroups={categoryGroups}
-              prewarmStartMonth={prewarmStartMonth}
-              startMonth={startMonth}
-              numMonths={numMonths}
-              monthBounds={monthBounds}
-              {...props}
-            />
-          </View>
+      <View
+        style={{
+          width,
+          height,
+          alignItems: 'center',
+          opacity: width <= 0 || height <= 0 ? 0 : 1,
+        }}
+      >
+        <View style={{ width: '100%', maxWidth }}>
+          <BudgetPageHeader
+            startMonth={prewarmStartMonth}
+            numMonths={numMonths}
+            monthBounds={monthBounds}
+            onMonthSelect={onMonthSelect}
+          />
+          <BudgetTable
+            ref={ref}
+            categoryGroups={categoryGroups}
+            prewarmStartMonth={prewarmStartMonth}
+            startMonth={startMonth}
+            numMonths={numMonths}
+            monthBounds={monthBounds}
+            prefs={prefs}
+            {...actions}
+            {...props}
+          />
         </View>
-      </CategoryGroupsContext.Provider>
+      </View>
     );
   },
 );
 
-export default React.forwardRef((props, ref) => {
+export default forwardRef((props, ref) => {
   return (
     <AutoSizer>
       {({ width, height }) => (

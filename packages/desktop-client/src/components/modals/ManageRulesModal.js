@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom-v5-compat';
+import { useLocation } from 'react-router-dom';
 
 import { isNonProductionEnvironment } from 'loot-core/src/shared/environment';
 
-import { Modal } from '../common';
+import Modal from '../common/Modal';
 import ManageRules from '../ManageRules';
 
 export default function ManageRulesModal({ modalProps, payeeId }) {
@@ -22,7 +22,12 @@ export default function ManageRulesModal({ modalProps, payeeId }) {
       padding={0}
       loading={loading}
       {...modalProps}
-      style={[modalProps.style, { flex: 1, maxWidth: '90%', maxHeight: '90%' }]}
+      style={{
+        ...modalProps.style,
+        flex: 1,
+        maxWidth: '90%',
+        maxHeight: '90%',
+      }}
     >
       {() => <ManageRules isModal payeeId={payeeId} setLoading={setLoading} />}
     </Modal>

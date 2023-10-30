@@ -1,4 +1,6 @@
 import React, {
+  forwardRef,
+  memo,
   useState,
   useEffect,
   useLayoutEffect,
@@ -8,7 +10,6 @@ import React, {
   useImperativeHandle,
 } from 'react';
 
-import Component from '@reactions/component';
 import memoizeOne from 'memoize-one';
 
 import { groupById } from 'loot-core/src/shared/util';
@@ -18,20 +19,17 @@ import useSelected, {
   useSelectedItems,
   useSelectedDispatch,
 } from '../../hooks/useSelected';
+import useStableCallback from '../../hooks/useStableCallback';
 import Delete from '../../icons/v0/Delete';
 import ExpandArrow from '../../icons/v0/ExpandArrow';
 import Merge from '../../icons/v0/Merge';
 import ArrowThinRight from '../../icons/v1/ArrowThinRight';
-import { colors } from '../../style';
-import {
-  useStableCallback,
-  View,
-  Text,
-  Input,
-  Button,
-  Tooltip,
-  Menu,
-} from '../common';
+import { theme } from '../../style';
+import Button from '../common/Button';
+import Menu from '../common/Menu';
+import Search from '../common/Search';
+import Text from '../common/Text';
+import View from '../common/View';
 import {
   Table,
   TableHeader,
@@ -42,6 +40,7 @@ import {
   CellButton,
   useTableNavigator,
 } from '../table';
+import { Tooltip } from '../tooltips';
 
 let getPayeesById = memoizeOne(payees => groupById(payees));
 
@@ -62,9 +61,9 @@ function RuleButton({ ruleCount, focused, onEdit, onClick }) {
         style={{
           borderRadius: 4,
           padding: '3px 6px',
-          backgroundColor: colors.g9,
-          border: '1px solid ' + colors.g9,
-          color: colors.g1,
+          backgroundColor: theme.noticeBackground,
+          border: '1px solid ' + theme.noticeBackground,
+          color: theme.noticeTextDark,
           fontSize: 12,
         }}
         onEdit={onEdit}
@@ -80,20 +79,18 @@ function RuleButton({ ruleCount, focused, onEdit, onClick }) {
             <>Create rule</>
           )}
         </Text>
-        <ArrowThinRight style={{ width: 8, height: 8, color: colors.g1 }} />
+        <ArrowThinRight style={{ width: 8, height: 8 }} />
       </CellButton>
     </Cell>
   );
 }
 
-let Payee = React.memo(
+let Payee = memo(
   ({
     style,
     payee,
     ruleCount,
-    categoryGroups,
     selected,
-    highlighted,
     hovered,
     editing,
     focusedField,
@@ -102,31 +99,30 @@ let Payee = React.memo(
     onHover,
     onEdit,
     onUpdate,
-    ruleActions,
   }) => {
     let { id } = payee;
     let dispatchSelected = useSelectedDispatch();
-    let borderColor = selected ? colors.b8 : colors.border;
+    let borderColor = selected ? theme.tableBorderSelected : theme.tableBorder;
     let backgroundFocus = hovered || focusedField === 'select';
 
     return (
       <Row
-        borderColor={borderColor}
-        backgroundColor={
-          selected ? colors.b9 : backgroundFocus ? colors.hover : 'white'
-        }
-        highlighted={highlighted}
-        style={[
-          { alignItems: 'stretch' },
-          style,
-          {
-            backgroundColor: hovered ? colors.hover : null,
-          },
-          selected && {
-            backgroundColor: colors.b9,
+        style={{
+          alignItems: 'stretch',
+          ...style,
+          borderColor,
+          backgroundColor: hovered
+            ? theme.tableRowBackgroundHover
+            : selected
+            ? theme.tableRowBackgroundHighlight
+            : backgroundFocus
+            ? theme.tableRowBackgroundHover
+            : theme.tableBackground,
+          ...(selected && {
+            backgroundColor: theme.tableRowBackgroundHighlight,
             zIndex: 100,
-          },
-        ]}
+          }),
+        }}
         data-focus-key={payee.id}
         onMouseEnter={() => onHover && onHover(payee.id)}
       >
@@ -136,13 +132,15 @@ let Payee = React.memo(
           }
           focused={focusedField === 'select'}
           selected={selected}
-          onSelect={() => {
-            dispatchSelected({ type: 'select', id: payee.id });
+          onSelect={e => {
+            dispatchSelected({ type: 'select', id: payee.id, event: e });
           }}
         />
         <InputCell
           value={(payee.transfer_acct ? 'Transfer: ' : '') + payee.name}
-          valueStyle={!selected && payee.transfer_acct && { color: colors.n7 }}
+          valueStyle={
+            !selected && payee.transfer_acct && { color: theme.pageTextSubdued }
+          }
           exposed={focusedField === 'name'}
           width="flex"
           onUpdate={value =>
@@ -164,7 +162,7 @@ let Payee = React.memo(
   },
 );
 
-const PayeeTable = React.forwardRef(
+const PayeeTable = forwardRef(
   (
     {
       payees,
@@ -193,7 +191,7 @@ const PayeeTable = React.forwardRef(
     }, []);
 
     return (
-      <View style={[{ flex: 1 }]} onMouseLeave={() => setHovered(null)}>
+      <View style={{ flex: 1 }} onMouseLeave={() => setHovered(null)}>
         <Table
           ref={ref}
           items={payees}
@@ -224,28 +222,27 @@ const PayeeTable = React.forwardRef(
 );
 
 function PayeeTableHeader() {
-  let borderColor = colors.border;
+  let borderColor = theme.tableborder;
   let dispatchSelected = useSelectedDispatch();
   let selectedItems = useSelectedItems();
 
   return (
     <View>
       <TableHeader
-        borderColor={borderColor}
         style={{
-          backgroundColor: 'white',
-          color: colors.n4,
+          borderColor,
+          backgroundColor: theme.tableBackground,
+          color: theme.pageTextLight,
           zIndex: 200,
           userSelect: 'none',
         }}
         collapsed={true}
-        version="v2"
       >
         <SelectCell
           exposed={true}
           focused={false}
           selected={selectedItems.size > 0}
-          onSelect={() => dispatchSelected({ type: 'select-all' })}
+          onSelect={e => dispatchSelected({ type: 'select-all', event: e })}
         />
         <Cell value="Name" width="flex" />
       </TableHeader>
@@ -256,16 +253,14 @@ function PayeeTableHeader() {
 function EmptyMessage({ text, style }) {
   return (
     <View
-      style={[
-        {
-          textAlign: 'center',
-          color: colors.n7,
-          fontStyle: 'italic',
-          fontSize: 13,
-          marginTop: 5,
-        },
+      style={{
+        textAlign: 'center',
+        color: theme.pageTextSubdued,
+        fontStyle: 'italic',
+        fontSize: 13,
+        marginTop: 5,
         style,
-      ]}
+      }}
     >
       {text}
     </View>
@@ -304,7 +299,7 @@ function PayeeMenu({ payeesById, selectedPayees, onDelete, onMerge, onClose }) {
               padding: 3,
               fontSize: 11,
               fontStyle: 'italic',
-              color: colors.n7,
+              color: theme.pageTextSubdued,
             }}
           >
             {[...selectedPayees]
@@ -334,12 +329,12 @@ function PayeeMenu({ payeesById, selectedPayees, onDelete, onMerge, onClose }) {
   );
 }
 
-export const ManagePayees = React.forwardRef(
+export const ManagePayees = forwardRef(
   (
     {
-      modalProps,
       payees,
       ruleCounts,
+      orphanedPayees,
       categoryGroups,
       initialSelectedIds,
       ruleActions,
@@ -355,22 +350,28 @@ export const ManagePayees = React.forwardRef(
     let table = useRef(null);
     let scrollTo = useRef(null);
     let resetAnimation = useRef(false);
+    const [orphanedOnly, setOrphanedOnly] = useState(false);
 
-    let filteredPayees = useMemo(
-      () =>
-        filter === ''
-          ? payees
-          : payees.filter(p =>
-              p.name.toLowerCase().includes(filter.toLowerCase()),
-            ),
-      [payees, filter],
-    );
+    let filteredPayees = useMemo(() => {
+      let filtered = payees;
+      if (filter) {
+        filtered = filtered.filter(p =>
+          p.name.toLowerCase().includes(filter.toLowerCase()),
+        );
+      }
+      if (orphanedOnly) {
+        filtered = filtered.filter(p =>
+          orphanedPayees.map(o => o.id).includes(p.id),
+        );
+      }
+      return filtered;
+    }, [payees, filter, orphanedOnly]);
 
     let selected = useSelected('payees', filteredPayees, initialSelectedIds);
 
     function applyFilter(f) {
       if (filter !== f) {
-        table.current && table.current.setRowAnimation(false);
+        table.current?.setRowAnimation(false);
         setFilter(f);
         resetAnimation.current = true;
       }
@@ -387,7 +388,7 @@ export const ManagePayees = React.forwardRef(
         // actually update its contents until the next tick or
         // something? The table keeps being animated without this
         setTimeout(() => {
-          table.current && table.current.setRowAnimation(true);
+          table.current?.setRowAnimation(true);
         }, 0);
         resetAnimation.current = false;
       }
@@ -466,60 +467,73 @@ export const ManagePayees = React.forwardRef(
 
     let payeesById = getPayeesById(payees);
 
+    let [menuOpen, setMenuOpen] = useState(false);
+
     return (
       <View style={{ height: '100%' }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            padding: '0 10px 5px',
+            padding: '0 0 15px',
           }}
         >
-          <Component initialState={{ menuOpen: false }}>
-            {({ state, setState }) => (
-              <View>
-                <Button
-                  bare
-                  style={{ marginRight: 10 }}
-                  disabled={buttonsDisabled}
-                  onClick={() => setState({ menuOpen: true })}
-                >
-                  {buttonsDisabled
-                    ? 'No payees selected'
-                    : selected.items.size +
-                      ' ' +
-                      plural(selected.items.size, 'payee', 'payees')}
-                  <ExpandArrow width={8} height={8} style={{ marginLeft: 5 }} />
-                </Button>
-                {state.menuOpen && (
-                  <PayeeMenu
-                    payeesById={payeesById}
-                    selectedPayees={selected.items}
-                    onClose={() => setState({ menuOpen: false })}
-                    onDelete={onDelete}
-                    onMerge={onMerge}
-                  />
-                )}
-              </View>
+          <View style={{ flexShrink: 0 }}>
+            <Button
+              type="bare"
+              style={{ marginRight: 10 }}
+              disabled={buttonsDisabled}
+              onClick={() => setMenuOpen(true)}
+            >
+              {buttonsDisabled
+                ? 'No payees selected'
+                : selected.items.size +
+                  ' ' +
+                  plural(selected.items.size, 'payee', 'payees')}
+              <ExpandArrow width={8} height={8} style={{ marginLeft: 5 }} />
+            </Button>
+            {menuOpen && (
+              <PayeeMenu
+                payeesById={payeesById}
+                selectedPayees={selected.items}
+                onClose={() => setMenuOpen(false)}
+                onDelete={onDelete}
+                onMerge={onMerge}
+              />
             )}
-          </Component>
+          </View>
+          <View
+            style={{
+              flexShrink: 0,
+            }}
+          >
+            {(orphanedOnly ||
+              (orphanedPayees && orphanedPayees.length > 0)) && (
+              <Button
+                type="bare"
+                style={{ marginRight: 10 }}
+                onClick={() => {
+                  setOrphanedOnly(!orphanedOnly);
+                  applyFilter(filter);
+                  tableNavigator.onEdit(null);
+                }}
+              >
+                {orphanedOnly
+                  ? 'Show all payees'
+                  : `Show ${
+                      orphanedPayees.length === 1
+                        ? '1 unused payee'
+                        : `${orphanedPayees.length} unused payees`
+                    }`}
+              </Button>
+            )}
+          </View>
           <View style={{ flex: 1 }} />
-          <Input
+          <Search
+            id="filter-input"
             placeholder="Filter payees..."
             value={filter}
-            onChange={e => {
-              applyFilter(e.target.value);
-              tableNavigator.onEdit(null);
-            }}
-            style={{
-              width: 350,
-              borderColor: 'transparent',
-              backgroundColor: colors.n11,
-              ':focus': {
-                backgroundColor: 'white',
-                '::placeholder': { color: colors.n8 },
-              },
-            }}
+            onChange={applyFilter}
           />
         </View>
 
@@ -527,8 +541,9 @@ export const ManagePayees = React.forwardRef(
           <View
             style={{
               flex: 1,
-              border: '1px solid ' + colors.border,
-              borderRadius: 4,
+              border: '1px solid ' + theme.tableBorder,
+              borderTopLeftRadius: 4,
+              borderTopRightRadius: 4,
               overflow: 'hidden',
             }}
           >

@@ -1,21 +1,24 @@
 import { test, expect } from '@playwright/test';
 
 import { ConfigurationPage } from './page-models/configuration-page';
-import { Navigation } from './page-models/navigation';
+import screenshotConfig from './screenshot.config';
 
 test.describe('Budget', () => {
   let page;
-  let navigation; // eslint-disable-line no-unused-vars
   let configurationPage;
   let budgetPage;
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
-    navigation = new Navigation(page);
     configurationPage = new ConfigurationPage(page);
 
     await page.goto('/');
     budgetPage = await configurationPage.createTestFile();
+
+    // Move mouse to corner of the screen;
+    // sometimes the mouse hovers on a budget element thus rendering an input box
+    // and this breaks screenshot tests
+    await page.mouse.move(0, 0);
   });
 
   test.afterAll(async () => {
@@ -25,10 +28,13 @@ test.describe('Budget', () => {
   test('renders the summary information: available funds, overspent, budgeted and for next month', async () => {
     const summary = budgetPage.budgetSummary.first();
 
-    await expect(summary.getByText('Available Funds')).toBeVisible();
+    await expect(summary.getByText('Available Funds')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(summary.getByText(/^Overspent in /)).toBeVisible();
     await expect(summary.getByText('Budgeted')).toBeVisible();
     await expect(summary.getByText('For Next Month')).toBeVisible();
+    await expect(page).toHaveScreenshot(screenshotConfig(page));
   });
 
   test('transfer funds to another category', async () => {
@@ -41,6 +47,7 @@ test.describe('Budget', () => {
     expect(await budgetPage.getBalanceForRow(2)).toEqual(
       currentFundsA + currentFundsB,
     );
+    await expect(page).toHaveScreenshot(screenshotConfig(page));
   });
 
   test('budget table is rendered', async () => {
@@ -50,5 +57,15 @@ test.describe('Budget', () => {
       spent: expect.any(Number),
       balance: expect.any(Number),
     });
+  });
+
+  test('clicking on spent amounts opens a transaction page', async () => {
+    let categoryName = await budgetPage.getCategoryNameForRow(1);
+    let accountPage = await budgetPage.clickOnSpentAmountForRow(1);
+    expect(page.url()).toContain('/accounts');
+    expect(await accountPage.accountName.textContent()).toMatch(
+      new RegExp(String.raw`${categoryName} \(\w+ \d+\)`),
+    );
+    await page.getByRole('button', { name: 'Back' }).click();
   });
 });

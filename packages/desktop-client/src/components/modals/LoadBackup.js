@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { Component, useState, useEffect } from 'react';
 
-import { colors } from '../../style';
-import { View, Text, Block, Modal, Button } from '../common';
+import { send, listen, unlisten } from 'loot-core/src/platform/client/fetch';
+
+import { theme } from '../../style';
+import Block from '../common/Block';
+import Button from '../common/Button';
+import Modal from '../common/Modal';
+import Text from '../common/Text';
+import View from '../common/View';
 import { Row, Cell } from '../table';
 
-class BackupTable extends React.Component {
+class BackupTable extends Component {
   state = { hoveredBackup: null };
 
   onHover = id => {
@@ -43,11 +49,24 @@ class BackupTable extends React.Component {
 
 function LoadBackup({
   budgetId,
-  backups,
+  watchUpdates,
   backupDisabled,
   actions,
   modalProps,
 }) {
+  let [backups, setBackups] = useState([]);
+
+  useEffect(() => {
+    send('backups-get', { id: budgetId }).then(setBackups);
+  }, [budgetId]);
+
+  useEffect(() => {
+    if (watchUpdates) {
+      listen('backups-updated', setBackups);
+      return () => unlisten('backups-updated', setBackups);
+    }
+  }, [watchUpdates]);
+
   const latestBackup = backups.find(backup => backup.isLatest);
   const previousBackups = backups.filter(backup => !backup.isLatest);
 
@@ -73,7 +92,7 @@ function LoadBackup({
                   version below.
                 </Block>
                 <Button
-                  primary
+                  type="primary"
                   onClick={() => actions.loadBackup(budgetId, latestBackup.id)}
                 >
                   Revert to original version
@@ -90,7 +109,7 @@ function LoadBackup({
                   </Text>
                 </Block>
                 <Button
-                  primary
+                  type="primary"
                   disabled={backupDisabled}
                   onClick={() => actions.makeBackup()}
                 >
@@ -100,7 +119,7 @@ function LoadBackup({
             )}
           </View>
           {previousBackups.length === 0 ? (
-            <Block style={{ color: colors.n6, marginLeft: 20 }}>
+            <Block style={{ color: theme.altTableText, marginLeft: 20 }}>
               No backups available
             </Block>
           ) : (

@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { connect } from 'react-redux';
-import { Switch, Redirect, Router, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { Navigate, BrowserRouter, Route, Routes } from 'react-router-dom';
 
-import { createBrowserHistory } from 'history';
-
-import * as actions from 'loot-core/src/client/actions';
-
-import { colors } from '../../style';
+import { useActions } from '../../hooks/useActions';
+import { theme } from '../../style';
 import tokens from '../../tokens';
-import { View, Text } from '../common';
+import { ExposeNavigate } from '../../util/router-tools';
+import Text from '../common/Text';
+import View from '../common/View';
 import LoggedInUser from '../LoggedInUser';
 import Notifications from '../Notifications';
 import { useServerVersion } from '../ServerContext';
@@ -29,11 +28,11 @@ function Version() {
   return (
     <Text
       style={{
-        color: colors.n7,
-        ':hover': { color: colors.n2 },
+        color: theme.pageTextSubdued,
+        ':hover': { color: theme.pageText },
         margin: 15,
         marginLeft: 17,
-        [`@media (min-width: ${tokens.breakpoint_medium})`]: {
+        [`@media (min-width: ${tokens.breakpoint_small})`]: {
           position: 'absolute',
           bottom: 0,
           right: 0,
@@ -42,24 +41,20 @@ function Version() {
           zIndex: 5001,
         },
       }}
-      href={'https://actualbudget.github.io/docs/Release-Notes/'}
     >
       {`App: v${window.Actual.ACTUAL_VERSION} | Server: ${version}`}
     </Text>
   );
 }
 
-function ManagementApp({
-  isLoading,
-  files,
-  userData,
-  managerHasInitialized,
-  setAppState,
-  getUserData,
-  loadAllFiles,
-}) {
-  const [history] = useState(createBrowserHistory);
-  window.__history = history;
+export default function ManagementApp({ isLoading }) {
+  let files = useSelector(state => state.budgets.allFiles);
+  let userData = useSelector(state => state.user.data);
+  let managerHasInitialized = useSelector(
+    state => state.app.managerHasInitialized,
+  );
+
+  let { setAppState, getUserData, loadAllFiles } = useActions();
 
   // runs on mount only
   useEffect(() => {
@@ -107,8 +102,9 @@ function ManagementApp({
   }
 
   return (
-    <Router history={history}>
-      <View style={{ height: '100%' }}>
+    <BrowserRouter>
+      <ExposeNavigate />
+      <View style={{ height: '100%', color: theme.pageText }}>
         <View
           style={{
             position: 'absolute',
@@ -150,21 +146,18 @@ function ManagementApp({
           >
             {userData && files ? (
               <>
-                <Switch>
-                  <Route exact path="/config-server" component={ConfigServer} />
-                  <Route
-                    exact
-                    path="/change-password"
-                    component={ChangePassword}
-                  />
+                <Routes>
+                  <Route path="/config-server" element={<ConfigServer />} />
+
+                  <Route path="/change-password" element={<ChangePassword />} />
                   {files && files.length > 0 ? (
-                    <Route exact path="/" component={BudgetList} />
+                    <Route path="/" element={<BudgetList />} />
                   ) : (
-                    <Route exact path="/" component={WelcomeScreen} />
+                    <Route path="/" element={<WelcomeScreen />} />
                   )}
                   {/* Redirect all other pages to this route */}
-                  <Route path="/" render={() => <Redirect to="/" />} />
-                </Switch>
+                  <Route path="/*" element={<Navigate to="/" />} />
+                </Routes>
 
                 <View
                   style={{
@@ -175,49 +168,43 @@ function ManagementApp({
                     zIndex: 4000,
                   }}
                 >
-                  <Switch>
-                    <Route exact path="/config-server" component={null} />
+                  <Routes>
+                    <Route path="/config-server" element={null} />
                     <Route
-                      exact
-                      path="/"
-                      render={() => (
-                        <LoggedInUser style={{ padding: '4px 7px' }} />
-                      )}
+                      path="/*"
+                      element={
+                        <LoggedInUser
+                          hideIfNoServer
+                          style={{ padding: '4px 7px' }}
+                        />
+                      }
                     />
-                  </Switch>
+                  </Routes>
                 </View>
               </>
             ) : (
-              <Switch>
-                <Route exact path="/login" component={Login} />
-                <Route exact path="/error" component={Error} />
-                <Route exact path="/config-server" component={ConfigServer} />
-                <Route exact path="/bootstrap" component={Bootstrap} />
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/error" element={<Error />} />
+                <Route path="/config-server" element={<ConfigServer />} />
+                <Route path="/bootstrap" element={<Bootstrap />} />
                 {/* Redirect all other pages to this route */}
-                <Route path="/" render={() => <Redirect to="/bootstrap" />} />
-              </Switch>
+                <Route
+                  path="/*"
+                  element={<Navigate to="/bootstrap" replace />}
+                />
+              </Routes>
             )}
           </View>
         )}
 
-        <Switch>
-          <Route exact path="/config-server" component={null} />
-          <Route path="/" component={ServerURL} />
-        </Switch>
+        <Routes>
+          <Route path="/config-server" element={null} />
+          <Route path="/*" element={<ServerURL />} />
+        </Routes>
         <Version />
       </View>
-      <Modals history={history} />
-    </Router>
+      <Modals />
+    </BrowserRouter>
   );
 }
-
-export default connect(state => {
-  let { modalStack } = state.modals;
-
-  return {
-    files: state.budgets.allFiles,
-    userData: state.user.data,
-    managerHasInitialized: state.app.managerHasInitialized,
-    currentModals: modalStack.map(modal => modal.name),
-  };
-}, actions)(ManagementApp);

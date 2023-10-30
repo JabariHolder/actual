@@ -1,17 +1,22 @@
 let path = require('path');
 
+const TerserPlugin = require('terser-webpack-plugin');
 let webpack = require('webpack');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 /** @type {webpack.Configuration} */
 module.exports = {
   mode: process.env.NODE_ENV === 'development' ? 'development' : 'production',
-  entry: path.join(__dirname, '../src/server/main.js'),
+  entry: path.join(__dirname, '../src/server/main.ts'),
   context: path.resolve(__dirname, '../../..'),
   devtool: false,
   output: {
     path: path.resolve(path.join(__dirname, '/../lib-dist/browser')),
     library: 'backend',
     publicPath: '/kcab/',
+  },
+  stats: {
+    errorDetails: true,
   },
   resolve: {
     extensions: [
@@ -23,47 +28,70 @@ module.exports = {
       '.tsx',
       '.json',
     ],
-    alias: {
-      fs: 'memfs',
-      path: 'path-browserify',
-    },
-  },
-  resolveLoader: {
-    alias: {
-      'pegjs-loader': require.resolve('pegjs-loader'),
+    fallback: {
+      assert: require.resolve('assert/'),
+      buffer: require.resolve('buffer/'),
+      // used by sql.js, but only if the 'crypto' global is not defined
+      // used by adm-zip for ZipCrypto, but we don’t use that
+      crypto: false,
+      dgram: false,
+      fs: require.resolve('memfs'),
+      net: false,
+      path: require.resolve('path-browserify'),
+      process: require.resolve('process/browser'),
+      stream: require.resolve('stream-browserify'),
+      tls: false,
+      // used by memfs in a check which we can ignore I think
+      url: false,
+      zlib: require.resolve('browserify-zlib'),
+      // used by xml2js
+      timers: false,
     },
   },
   module: {
     rules: [
       {
         test: /\.m?[tj]sx?$/,
+        exclude: /node_modules/,
         use: {
-          loader: 'babel-loader',
-          options: {
-            presets: ['@babel/preset-env', '@babel/preset-typescript'],
-          },
+          loader: 'swc-loader',
         },
       },
       {
         test: /\.pegjs$/,
-        use: { loader: 'pegjs-loader' },
+        use: { loader: path.resolve(__dirname, '../peg-loader.js') },
       },
     ],
   },
   optimization: {
-    namedChunks: true,
+    chunkIds: 'named',
+    minimize:
+      process.env.CI === 'true' || process.env.NODE_ENV !== 'development',
+    minimizer: [
+      new TerserPlugin({
+        minify: TerserPlugin.swcMinify,
+        // `terserOptions` options will be passed to `swc` (`@swc/core`)
+        // Link to options - https://swc.rs/docs/config-js-minify
+        terserOptions: {
+          compress: false,
+          mangle: true,
+        },
+      }),
+    ],
   },
   plugins: [
     new webpack.DefinePlugin({
+      'process.env': '{}',
       'process.env.IS_DEV': JSON.stringify(
         process.env.NODE_ENV === 'development',
-      ),
-      'process.env.IS_BETA': JSON.stringify(
-        process.env.ACTUAL_RELEASE_TYPE === 'beta',
       ),
       'process.env.PUBLIC_URL': JSON.stringify(process.env.PUBLIC_URL || '/'),
       'process.env.ACTUAL_DATA_DIR': JSON.stringify('/'),
       'process.env.ACTUAL_DOCUMENT_DIR': JSON.stringify('/documents'),
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+      process: 'process/browser',
     }),
     new webpack.SourceMapDevToolPlugin({
       filename: '[file].map',
@@ -72,10 +100,9 @@ module.exports = {
     new webpack.IgnorePlugin({
       resourceRegExp: /worker_threads|original-fs/,
     }),
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'disabled',
+      generateStatsFile: true,
+    }),
   ],
-  node: {
-    dgram: 'empty',
-    net: 'empty',
-    tls: 'empty',
-  },
 };

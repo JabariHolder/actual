@@ -5,14 +5,14 @@ import React, {
   useCallback,
   useLayoutEffect,
 } from 'react';
+import { useSpring, animated } from 'react-spring';
 
 import { css } from 'glamor';
-import { Spring } from 'wobble';
 
 import * as monthUtils from 'loot-core/src/shared/months';
 
 import useResizeObserver from '../../hooks/useResizeObserver';
-import { View } from '../common';
+import View from '../common/View';
 
 import { MonthsContext } from './MonthsContext';
 
@@ -20,14 +20,16 @@ export default function BudgetSummaries({ SummaryComponent }) {
   let { months } = useContext(MonthsContext);
 
   let [widthState, setWidthState] = useState(0);
-  let spring = useRef(null);
+  let [styles, spring] = useSpring(() => ({
+    x: 0,
+    config: { mass: 3, tension: 600, friction: 80 },
+  }));
 
   let containerRef = useResizeObserver(
     useCallback(rect => {
       setWidthState(rect.width);
     }, []),
   );
-  let scrollerRef = useRef();
 
   let prevMonth0 = useRef(months[0]);
 
@@ -37,37 +39,15 @@ export default function BudgetSummaries({ SummaryComponent }) {
   let monthWidth = widthState / months.length;
 
   useLayoutEffect(() => {
-    if (!scrollerRef.current) {
-      return;
-    }
-
-    if (!spring.current) {
-      spring.current = new Spring({
-        stiffness: 600,
-        damping: 80,
-        mass: 3,
-        fromValue: -monthWidth,
-      });
-
-      spring.current.onUpdate(s => {
-        if (scrollerRef.current) {
-          scrollerRef.current.style.transform =
-            'translateX(' + s.currentValue + 'px)';
-        }
-      });
-    }
-
     let prevMonth = prevMonth0.current;
     let reversed = prevMonth > months[0];
     let offsetX = monthWidth;
-
     let from = reversed ? -offsetX * 2 : 0;
     if (prevMonth !== allMonths[0] && prevMonth !== allMonths[2]) {
       from = -offsetX;
     }
-
     let to = -offsetX;
-    spring.current.updateConfig({ fromValue: from, toValue: to }).start();
+    spring.start({ from: { x: from }, x: to });
   }, [months[0]]);
 
   useLayoutEffect(() => {
@@ -75,42 +55,44 @@ export default function BudgetSummaries({ SummaryComponent }) {
   }, [months[0]]);
 
   useLayoutEffect(() => {
-    scrollerRef.current.style.transform = `translateX(${-monthWidth}px)`;
+    spring.start({ from: { x: -monthWidth }, to: { x: -monthWidth } });
   }, [monthWidth]);
 
   return (
     <div
-      {...css([
+      className={`${css([
         { flex: 1, overflow: 'hidden' },
         months.length === 1 && {
           marginLeft: -4,
           marginRight: -4,
         },
-      ])}
+      ])}`}
       ref={containerRef}
     >
-      <View
+      <animated.div
+        className="view"
         style={{
           flexDirection: 'row',
           width: widthState,
           willChange: 'transform',
+          transform: styles.x.to(x => `translateX(${x}px)`),
         }}
-        innerRef={scrollerRef}
       >
-        {allMonths.map((month, idx) => {
+        {allMonths.map(month => {
           return (
             <View
               key={month}
-              style={[
-                { flex: `0 0 ${monthWidth}px` },
-                { paddingLeft: 4, paddingRight: 4 },
-              ]}
+              style={{
+                flex: `0 0 ${monthWidth}px`,
+                paddingLeft: 4,
+                paddingRight: 4,
+              }}
             >
               <SummaryComponent month={month} />
             </View>
           );
         })}
-      </View>
+      </animated.div>
     </div>
   );
 }

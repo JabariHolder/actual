@@ -1,6 +1,7 @@
 let path = require('path');
 
 let webpack = require('webpack');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
 
 let browser = require('./webpack.browser.config');
 
@@ -24,18 +25,24 @@ module.exports = {
       '.ts',
       '.tsx',
       '.json',
+      'pegjs',
     ],
   },
   externals: [
     'better-sqlite3',
-    'node-ipc',
     'electron-log',
     'node-fetch',
     'node-libofx',
+    'ws',
+    'fs',
   ],
   plugins: [
     new webpack.IgnorePlugin({
       resourceRegExp: /original-fs/,
+    }),
+    new BundleAnalyzerPlugin({
+      analyzerMode: 'disabled',
+      generateStatsFile: true,
     }),
   ],
   node: {

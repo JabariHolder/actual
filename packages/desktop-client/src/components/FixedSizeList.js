@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { createRef, PureComponent } from 'react';
 
 import memoizeOne from 'memoize-one';
 
 import useResizeObserver from '../hooks/useResizeObserver';
 
-import { View } from './common';
+import View from './common/View';
 
 const IS_SCROLLING_DEBOUNCE_INTERVAL = 150;
 
@@ -15,7 +15,7 @@ function ResizeObserver({ onResize, children }) {
   return children(ref);
 }
 
-export class FixedSizeList extends React.PureComponent {
+export default class FixedSizeList extends PureComponent {
   _outerRef;
   _resetIsScrollingTimeoutId = null;
 
@@ -31,9 +31,9 @@ export class FixedSizeList extends React.PureComponent {
   constructor(props) {
     super(props);
 
-    this.lastPositions = React.createRef();
+    this.lastPositions = createRef();
     this.lastPositions.current = new Map();
-    this.needsAnimationRerender = React.createRef();
+    this.needsAnimationRerender = createRef();
     this.needsAnimationRerender.current = false;
     this.animationEnabled = false;
 
@@ -206,7 +206,7 @@ export class FixedSizeList extends React.PureComponent {
             style={{
               height,
               width,
-              overflow: 'auto',
+              overflow: 'hidden auto',
               ...style,
             }}
           >
@@ -336,7 +336,7 @@ export class FixedSizeList extends React.PureComponent {
 
   getStopIndexForStartIndex = (startIndex, scrollOffset) => {
     const offset = startIndex * this.props.itemSize;
-    const size = this.props.width;
+    const size = this.props.height;
     const numVisibleItems = Math.ceil(
       (size + scrollOffset - offset) / this.props.itemSize,
     );

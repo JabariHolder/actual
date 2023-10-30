@@ -1,3 +1,5 @@
+import type { IRuleOptions } from '@rschedule/core';
+
 import * as monthUtils from './months';
 import q from './query';
 
@@ -156,15 +158,8 @@ export function getRecurringDescription(config) {
   }
 }
 
-type RecurringSchedule = {
-  start: Date;
-  frequency: string;
-  byHourOfDay: number[];
-  interval?: unknown;
-};
-
 export function recurConfigToRSchedule(config) {
-  let base: RecurringSchedule = {
+  let base: IRuleOptions = {
     start: monthUtils.parseDate(config.start),
     frequency: config.frequency.toUpperCase(),
     byHourOfDay: [12],
@@ -239,4 +234,12 @@ export function getScheduledAmount(amount) {
     return Math.round((amount.num1 + amount.num2) / 2);
   }
   return amount;
+}
+
+export function describeSchedule(schedule, payee) {
+  if (payee) {
+    return `${payee.name} (${schedule.next_date})`;
+  } else {
+    return `Next: ${schedule.next_date}`;
+  }
 }

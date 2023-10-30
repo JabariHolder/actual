@@ -1,5 +1,4 @@
 module.exports = {
-  preset: 'ts-jest/presets/js-with-ts-esm',
   moduleFileExtensions: [
     'testing.js',
     'testing.ts',
@@ -11,7 +10,7 @@ module.exports = {
     'tsx',
     'json',
   ],
-  setupFilesAfterEnv: ['<rootDir>/src/mocks/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/mocks/setup.ts'],
   testEnvironment: 'node',
   testPathIgnorePatterns: [
     '/node_modules/',
@@ -20,6 +19,7 @@ module.exports = {
   ],
   transformIgnorePatterns: ['/node_modules/'],
   transform: {
-    '\\.pegjs$': 'pegjs-jest-transformer',
+    '\\.pegjs$': '<rootDir>/peg-transform.mjs',
+    '^.+\\.(t|j)sx?$': '@swc/jest',
   },
 };

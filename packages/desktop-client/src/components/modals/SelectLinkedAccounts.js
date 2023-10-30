@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 
-import { colors } from '../../style';
-import Autocomplete from '../autocomplete/NewAutocomplete';
-import { View, Modal, Button, Text } from '../common';
+import { theme } from '../../style';
+import Autocomplete from '../autocomplete/Autocomplete';
+import Button from '../common/Button';
+import Modal from '../common/Modal';
+import Text from '../common/Text';
+import View from '../common/View';
 import { TableHeader, Table, Row, Field } from '../table';
 
-const addAccountOption = { value: 'new', label: 'Create new account' };
+const addAccountOption = { id: 'new', name: 'Create new account' };
 
 export default function SelectLinkedAccounts({
   modalProps,
@@ -49,7 +52,7 @@ export default function SelectLinkedAccounts({
         actions.linkAccount(
           requisitionId,
           externalAccount,
-          chosenLocalAccountId !== addAccountOption.value
+          chosenLocalAccountId !== addAccountOption.id
             ? chosenLocalAccountId
             : undefined,
         );
@@ -88,7 +91,7 @@ export default function SelectLinkedAccounts({
             style={{
               flex: 'unset',
               height: 300,
-              border: '1px solid ' + colors.border,
+              border: '1px solid ' + theme.tableBorder,
             }}
           >
             <TableHeader
@@ -101,18 +104,15 @@ export default function SelectLinkedAccounts({
 
             <Table
               items={externalAccounts}
-              style={{ backgroundColor: colors.n11 }}
+              style={{ backgroundColor: theme.tableHeaderBackground }}
               getItemKey={index => index}
               renderItem={({ key, item }) => (
                 <View key={key}>
                   <TableRow
                     externalAccount={item}
                     chosenAccount={
-                      chosenAccounts[item.account_id] === addAccountOption.value
-                        ? {
-                            id: addAccountOption.value,
-                            name: addAccountOption.label,
-                          }
+                      chosenAccounts[item.account_id] === addAccountOption.id
+                        ? addAccountOption
                         : localAccounts.find(
                             acc => chosenAccounts[item.account_id] === acc.id,
                           )
@@ -133,7 +133,7 @@ export default function SelectLinkedAccounts({
             }}
           >
             <Button
-              primary
+              type="primary"
               onClick={onNext}
               disabled={!Object.keys(chosenAccounts).length}
             >
@@ -154,22 +154,14 @@ function TableRow({
 }) {
   const [focusedField, setFocusedField] = useState(null);
 
-  const chosenAccountOption = chosenAccount && {
-    value: chosenAccount.id,
-    label: chosenAccount.name,
-  };
-
   const availableAccountOptions = [
-    ...unlinkedAccounts.map(acct => ({
-      value: acct.id,
-      label: acct.name,
-    })),
-    chosenAccount?.id !== addAccountOption.value && chosenAccountOption,
+    ...unlinkedAccounts,
+    chosenAccount?.id !== addAccountOption.id && chosenAccount,
     addAccountOption,
   ].filter(Boolean);
 
   return (
-    <Row style={{ backgroundColor: 'white' }}>
+    <Row style={{ backgroundColor: theme.tableBackground }}>
       <Field width={200}>{externalAccount.name}</Field>
       <Field
         width="flex"
@@ -178,13 +170,17 @@ function TableRow({
       >
         {focusedField === 'account' ? (
           <Autocomplete
-            autoFocus
-            options={availableAccountOptions}
+            focused
+            strict
+            highlightFirst
+            suggestions={availableAccountOptions}
             onSelect={value => {
               onSetLinkedAccount(externalAccount, value);
             }}
-            onBlur={() => setFocusedField(null)}
-            value={chosenAccountOption}
+            inputProps={{
+              onBlur: () => setFocusedField(null),
+            }}
+            value={chosenAccount?.id}
           />
         ) : (
           chosenAccount?.name
@@ -202,7 +198,7 @@ function TableRow({
           </Button>
         ) : (
           <Button
-            primary
+            type="primary"
             onClick={() => {
               setFocusedField('account');
             }}

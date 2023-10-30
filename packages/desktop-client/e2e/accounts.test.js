@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { ConfigurationPage } from './page-models/configuration-page';
 import { Navigation } from './page-models/navigation';
+import screenshotConfig from './screenshot.config';
 
 test.describe('Accounts', () => {
   let page;
@@ -24,18 +25,17 @@ test.describe('Accounts', () => {
   test('creates a new account and views the initial balance transaction', async () => {
     const accountPage = await navigation.createAccount({
       name: 'New Account',
-      type: 'Checking / Cash',
       offBudget: false,
       balance: 100,
     });
 
-    expect(await accountPage.getNthTransaction(0)).toMatchObject({
-      payee: 'Starting Balance',
-      notes: '',
-      category: 'Starting Balances',
-      debit: '',
-      credit: '100.00',
-    });
+    const transaction = accountPage.getNthTransaction(0);
+    await expect(transaction.payee).toHaveText('Starting Balance');
+    await expect(transaction.notes).toHaveText('');
+    await expect(transaction.category).toHaveText('Starting Balances');
+    await expect(transaction.debit).toHaveText('');
+    await expect(transaction.credit).toHaveText('100.00');
+    await expect(page).toHaveScreenshot(screenshotConfig(page));
   });
 
   test('closes an account', async () => {
@@ -45,8 +45,10 @@ test.describe('Accounts', () => {
 
     const modal = await accountPage.clickCloseAccount();
     await modal.selectTransferAccount('Vanguard 401k');
+    await expect(page).toHaveScreenshot(screenshotConfig(page));
     await modal.closeAccount();
 
     await expect(accountPage.accountName).toHaveText('Closed: Roth IRA');
+    await expect(page).toHaveScreenshot(screenshotConfig(page));
   });
 });
