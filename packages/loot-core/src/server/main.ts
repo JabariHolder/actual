@@ -10,6 +10,7 @@ import * as connection from '../platform/server/connection';
 import * as fs from '../platform/server/fs';
 import logger from '../platform/server/log';
 import * as sqlite from '../platform/server/sqlite';
+import Classifier from '../shared/classifier';
 import { isNonProductionEnvironment } from '../shared/environment';
 import * as monthUtils from '../shared/months';
 import q, { Query } from '../shared/query';
@@ -1236,6 +1237,33 @@ handlers['gocardless-accounts-sync'] = async function ({ id }) {
   }
 
   return { errors, newTransactions, matchedTransactions, updatedAccounts };
+};
+
+handlers['classify-transactions'] = async function () {
+  const trainingData = {};
+  const classifier = new Classifier();
+  const classifierExists = await classifier.load();
+
+  if (classifierExists) {
+    console.log('Classifier cache found');
+  } else {
+    console.log('Classifier cache not found');
+
+    const transactions = await db.getCategoryPayees();
+
+    // Sort from earliest to latest
+    const sortedTransactions = transactions.sort(
+      (a, b) => new Date(b.date) - new Date(a.date),
+    );
+
+    // Limit to 500 per category
+    sortedTransactions.forEach(t => {
+      if (!trainingData[t.category]) trainingData[t.category] = [];
+      trainingData[t.category].push(classifier.normalise(t.name));
+    });
+
+    await classifier.build(trainingData);
+  }
 };
 
 handlers['transactions-import'] = mutator(function ({

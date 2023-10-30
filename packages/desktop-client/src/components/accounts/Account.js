@@ -281,6 +281,8 @@ class AccountInternal extends PureComponent {
     if (this.props.lastUndoState && this.props.lastUndoState.current) {
       onUndo(this.props.lastUndoState.current);
     }
+
+    this.props.classifyTransactions();
   }
 
   componentDidUpdate(prevProps) {

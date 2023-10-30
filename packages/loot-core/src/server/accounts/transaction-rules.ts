@@ -1,3 +1,4 @@
+import Classifier from '../../shared/classifier';
 import {
   currentDay,
   addDays,
@@ -272,7 +273,7 @@ function onApplySync(oldValues, newValues) {
 }
 
 // Runner
-export function runRules(trans) {
+export async function runRules(trans) {
   let finalTrans = { ...trans };
 
   let rules = rankRules(
@@ -285,6 +286,35 @@ export function runRules(trans) {
   for (let i = 0; i < rules.length; i++) {
     finalTrans = rules[i].apply(finalTrans);
   }
+
+  const classifier = new Classifier();
+  await classifier.load();
+
+  const payee = await db.first('SELECT name FROM payees WHERE id = ?', [
+    finalTrans.payee,
+  ]);
+
+  const payeeName = payee && Object.keys(payee).length > 0 && payee.name ? payee.name : finalTrans.imported_payee;
+  const classification = classifier.classify(payeeName);
+
+  if (classification.length) {
+    finalTrans.category = classification[0]._label;
+  }
+
+  /*
+  console.log('CAT', classification);
+  if(classification && classification.length > 0) {
+    const categoryResult = await db.first(
+      'SELECT name FROM categories WHERE id = ?',
+      [classification[0]._label],
+    );
+    console.log('query category name', categoryResult.name);
+  }
+
+  //console.log('classification', classification);
+  //console.log('final', finalTrans.category);
+  //console.log('payee', payee.name);
+  */
 
   return finalTrans;
 }

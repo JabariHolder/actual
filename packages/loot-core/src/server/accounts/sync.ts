@@ -405,7 +405,7 @@ export async function reconcileGoCardlessTransactions(acctId, transactions) {
   let transactionsStep1 = [];
   for (let { payee_name, trans, subtransactions } of normalized) {
     // Run the rules
-    trans = runRules(trans);
+    trans = await runRules(trans);
 
     let match = null;
     let fuzzyDataset = null;
@@ -559,7 +559,7 @@ export async function reconcileTransactions(acctId, transactions) {
   let transactionsStep1 = [];
   for (let { payee_name, trans, subtransactions } of normalized) {
     // Run the rules
-    trans = runRules(trans);
+    trans = await runRules(trans);
 
     let match = null;
     let fuzzyDataset = null;
@@ -717,7 +717,7 @@ export async function addTransactions(
 
   for (let { trans, subtransactions } of normalized) {
     // Run the rules
-    trans = runRules(trans);
+    trans = await runRules(trans);
 
     let finalTransaction = {
       id: uuidv4(),

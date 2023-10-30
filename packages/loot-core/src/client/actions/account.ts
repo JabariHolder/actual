@@ -11,6 +11,8 @@ import type {
   UpdateNewTransactionsAction,
 } from '../state-types/queries';
 
+import Classifier from '../../shared/classifier';
+
 import { addNotification } from './notifications';
 import { getPayees, getAccounts } from './queries';
 import type { Dispatch, GetState } from './types';
@@ -204,6 +206,12 @@ export function parseTransactions(filepath, options) {
       filepath,
       options,
     });
+  };
+}
+
+export function classifyTransactions() {
+  return async function () {
+    await send('classify-transactions');
   };
 }
 

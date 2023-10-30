@@ -624,6 +624,16 @@ export async function getTransactions(accountId) {
   );
 }
 
+export async function getCategoryPayees(accountId, arg2) {
+  if (arg2 !== undefined) {
+    throw new Error(
+      '`getTransactions` was given a second argument, it now only takes a single argument `accountId`',
+    );
+  }
+
+  return await all('SELECT t.category, t.payee, p.name FROM v_transactions as t, payees as p WHERE t.payee = p.id');
+}
+
 export function insertTransaction(transaction) {
   return insertWithSchema('transactions', transaction);
 }
